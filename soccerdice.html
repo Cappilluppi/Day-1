@@ -1,5 +1,5 @@
-﻿<!DOCTYPE html>
-<html lang="pt-BR">
+<!DOCTYPE html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -86,6 +86,23 @@
     #result[data-outcome='fail'] { color: #ffc0ba; background: #e04c3c22; border: 1px solid #ff938b40; }
     #end-summary { font-size: 1.15rem; line-height: 1.6; margin: 30px 0; }
     #end-restart, #reload { width: 100%; background: #eabe50; color: #15243a; font-weight: 800; margin-top: 12px; }
+    #goal-banner { position: absolute; z-index: 7; top: 40%; left: 12px; right: 12px; pointer-events: none; text-align: center; padding: 22px 12px; color: #fff5bc; background: linear-gradient(90deg,transparent,#112b44ed 20%,#112b44ed 80%,transparent); text-shadow: 0 4px 0 #162536; }
+    #goal-banner strong { display: block; font-size: clamp(2.6rem,12vw,4.5rem); font-style: italic; line-height: 1; letter-spacing: -.06em; }
+    #goal-banner span { display: block; margin-top: 10px; font-size: .85rem; font-weight: 800; letter-spacing: .06em; }
+    #goal-banner[data-team='opponent'] { color: #ffbbb6; }
+    #goal-banner:not([hidden]) { animation: goal-entrance .4s ease-out; }
+    @keyframes goal-entrance { from { opacity: 0; translate: 0 18px; } to { opacity: 1; translate: 0 0; } }
+    .net-ripple { animation: ripple .6s ease-out; transform-box: fill-box; transform-origin: center; }
+    @keyframes ripple { 30% { transform: scale(1.08,1.3); } 65% { transform: scale(.98,.9); } }
+    #ball.goal-shot { transition-duration: .7s; transition-timing-function: cubic-bezier(.15,.5,.35,1); }
+    .celebrating { animation: celebrate .45s ease-in-out 3; }
+    @keyframes celebrate { 50% { translate: 0 -12px; rotate: -5deg; } }
+    .score-flash { animation: score-flash .65s ease-out; }
+    @keyframes score-flash { 40% { color: #ffdc65; text-shadow: 0 0 18px #ffcc54; } }
+    #confetti { position: absolute; inset: 0; z-index: 6; overflow: hidden; pointer-events: none; }
+    #confetti i { position: absolute; top: -15px; width: 6px; height: 13px; background: var(--gold); animation: confetti-fall 1.8s ease-in forwards; }
+    @keyframes confetti-fall { to { translate: 25px 90dvh; rotate: 560deg; opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) { #goal-banner:not([hidden]),.net-ripple,.celebrating,.score-flash { animation: none; } #confetti { display: none; } #ball.goal-shot { transition: none; } }
     @media (max-height: 690px) { main:has(dialog[open]) .pitch { bottom: min(410px,64dvh); } dialog { padding: 14px; height: min(410px,64dvh); } dialog h2 { font-size: 1.2rem; } .panel-label { display: none; } #situation { margin: 7px 0; font-size: .75rem; } .move { min-height: 59px; padding-block: 7px; } #decision-screen > .muted { margin-bottom: 8px; } #table { height: 125px; } #result { margin-top: 7px; padding: 7px; } }
     @media (max-height: 480px) and (orientation: landscape) { dialog { width: 60%; max-width: 600px; height: calc(100dvh - 24px); right: 12px; left: auto; } .moves { grid-template-columns: repeat(3,1fr); } .move { padding: 12px 7px; } .move::before { display: none; } .move strong { font-size: .7rem; } .odds { display: block; margin: 0; } .die-target { margin: 2px; } #table { height: 90px; } #phase,#chosen-move { display: inline-block; margin-right: 8px; } }
     @media (prefers-reduced-motion: reduce) { .token,.pitch { transition: none; } #decision-screen,#dice-screen,#end-screen { animation: none; } }
@@ -93,10 +110,10 @@
 </head>
 <body>
 <main>
-  <header><div><p class="eyebrow">Cada jogada muda o jogo</p><h1>SOCCER DICE</h1></div><button id="new-match" type="button">Nova partida</button></header>
+  <header><div><p class="eyebrow">Every decision changes the match</p><h1>SOCCER DICE</h1></div><button id="new-match" type="button">New match</button></header>
   <section class="scoreboard" aria-label="Match scoreboard">
-    <div><small>Você / Visitante</small><div class="score"><span id="home-score">0</span> : <span id="away-score">0</span></div></div>
-    <div class="stats"><div><small>Jogadas</small><strong id="turns">20</strong></div><div><small>Moedas</small><strong id="coins">0</strong></div></div>
+    <div><small>You / Opponent</small><div class="score"><span id="home-score">0</span> : <span id="away-score">0</span></div></div>
+    <div class="stats"><div><small>Turns left</small><strong id="turns">20</strong></div><div><small>Coins</small><strong id="coins">0</strong></div></div>
   </section>
   <div class="layout">
     <section class="card">
@@ -106,36 +123,39 @@
           <defs><linearGradient id="grass" x2="0" y2="1"><stop stop-color="#39863e"/><stop offset="1" stop-color="#72ae4b"/></linearGradient><pattern id="mowing" width="100" height="16" patternUnits="userSpaceOnUse"><rect width="100" height="8" fill="#123e1e" opacity=".14"/></pattern><pattern id="net" width="2" height="2" patternUnits="userSpaceOnUse"><path d="M0 0H2V2" fill="none" stroke="#eef6ff" stroke-width=".18"/></pattern></defs>
           <path d="M18 8H82L113 100H-13Z" fill="url(#grass)"/><path d="M18 8H82L113 100H-13Z" fill="url(#mowing)"/>
           <g fill="none" stroke="#e1f0d6" stroke-width=".45" opacity=".8"><path d="M21 11H79L108 98H-8ZM6 56H94M34 11L31 30H69L66 11M41 11L40 19H60L59 11"/><ellipse cx="50" cy="56" rx="13" ry="9"/><path d="M41 30Q50 39 59 30M14 98L19 78H81L86 98M32 98L34 90H66L68 98"/></g>
-          <path d="M41 11V4H59V11" fill="url(#net)" stroke="#e9f5ff" stroke-width=".8"/><path d="M41 4L39 2H61L59 4M41 11L39 8V2M59 11L61 8V2" fill="none" stroke="#c6dce6" stroke-width=".5"/>
+          <path id="away-net" d="M41 11V4H59V11" fill="url(#net)" stroke="#e9f5ff" stroke-width=".8"/><path d="M41 4L39 2H61L59 4M41 11L39 8V2M59 11L61 8V2" fill="none" stroke="#c6dce6" stroke-width=".5"/>
+          <path id="home-net" d="M34 94V99H66V94Z" fill="url(#net)" stroke="#e9f5ff" stroke-width=".7"/>
           <g fill="#cfdee1" font-family="sans-serif" font-size="1.8" font-weight="bold"><text x="21" y="5">SOCCER DICE</text><text x="65" y="5">MATCH DAY</text></g>
         </svg>
         <div class="token" id="player" aria-hidden="true">YOU</div><div class="token teammate" id="mate" aria-hidden="true">8</div>
         <div class="token opponent" id="marker" aria-hidden="true">4</div><div class="token opponent" id="cover" aria-hidden="true">5</div><div class="token opponent" id="keeper" aria-hidden="true">1</div><div class="token" id="ball" aria-hidden="true"></div>
       </div>
-      <div class="field-caption muted"><span id="zone">Meio-campo</span><span id="threat">Ataque ↑</span></div>
-      <p id="field-feedback" role="status" aria-live="polite">A bola está chegando. É a sua chance.</p>
+      <div class="field-caption muted"><span id="zone">Midfield</span><span id="threat">Attack ↑</span></div>
+      <p id="field-feedback" role="status" aria-live="polite">The ball is coming. This is your moment.</p>
       <button type="button" id="choose-open" disabled>Loading match…</button>
-      <details><summary>Lances e regras</summary><ol id="history"><li>A bola vem para você. Faça a diferença.</li></ol><p>Toque em uma jogada para rolar os dados. Só os totais indicados dão sucesso. Depois do resultado, acompanhe a ação no campo. São 20 decisões; duas falhas defensivas resultam em gol adversário.</p><p>Cada gol seu vale 2 moedas. Elas zeram a cada partida e servem como pontuação extra.</p></details>
+      <details><summary>Commentary &amp; rules</summary><ol id="history"><li>The pass is coming to you. Make it count.</li></ol><p>Tap a move to roll both dice automatically. Only the listed totals succeed. Watch the result, then the play on the field. You have 20 decisions; two defensive failures concede a goal.</p><p>Each of your goals earns 2 match coins. Coins reset each match and count as a secondary score.</p></details>
     </section>
   </div>
+  <div id="confetti" aria-hidden="true"></div>
+  <div id="goal-banner" role="status" aria-live="polite" hidden><strong id="goal-title">GOAL!</strong><span id="goal-detail"></span></div>
   <dialog id="game-screen" aria-labelledby="screen-title">
-    <p class="panel-label">MOMENTO DECISIVO</p>
-    <h2 id="screen-title" tabindex="-1">Preparando a partida</h2>
+    <p class="panel-label">YOUR MOMENT</p>
+    <h2 id="screen-title" tabindex="-1">Preparing the match</h2>
     <div id="decision-screen" hidden>
       <p id="situation"></p>
-      <p class="muted">Escolha a jogada. Os números abaixo garantem o sucesso.</p>
+      <p class="muted">Pick your move. Match one of these totals to succeed.</p>
       <div id="moves" class="moves" role="group" aria-label="Available moves"></div>
-      <button id="watch-field" type="button">Olhar o campo ↑</button>
+      <button id="watch-field" type="button">View the field ↑</button>
     </div>
     <div id="dice-screen">
       <p class="muted" id="phase">Loading</p>
       <p id="chosen-move" class="muted"></p>
       <div id="table" role="img" aria-label="Two 3D dice on a dice tray"></div>
       <div class="roll-row"><div class="total"><span class="muted">Total</span><strong id="total">—</strong></div><button id="roll" type="button" disabled hidden>Roll both dice</button></div>
-      <p id="result" role="status" aria-live="polite">Carregando os dados 3D…</p>
-      <button id="reload" type="button" hidden>Recarregar jogo</button>
+      <p id="result" role="status" aria-live="polite">Loading 3D dice…</p>
+      <button id="reload" type="button" hidden>Reload game</button>
     </div>
-    <div id="end-screen" hidden><p id="end-summary"></p><button id="end-restart" type="button">Jogar novamente</button></div>
+    <div id="end-screen" hidden><p id="end-summary"></p><button id="end-restart" type="button">Play again</button></div>
   </dialog>
   <footer class="muted">Exact totals. Real bounces. Internet required for the 3D dice libraries.</footer>
   <noscript>Enable JavaScript to play Soccer Dice.</noscript>
@@ -159,16 +179,16 @@
   // Balance lives here: totals are exact successful sums, not minimum thresholds.
   const RULES = {
     turns: 20, goalCoins: 2,
-    zones: ['Meio-campo', 'Campo de ataque', 'Grande área'],
+    zones: ['Midfield', 'Attacking third', 'Penalty area'],
     attack: {
-      pass: { label: 'Passar', description: 'Faça a tabela e avance uma zona.', totals: [[3,5,8,12],[3,5,8,12],[3,5,8,12]] },
-      dribble: { label: 'Driblar', description: 'Supere o marcador e avance até duas zonas.', totals: [[4,6,9],[4,6,9],[4,6,9]] },
-      shoot: { label: 'Chutar', description: 'Arrisque o gol. Quanto mais perto, melhor.', totals: [[2],[2,4,10,12],[4,6,7,9]] }
+      pass: { label: 'Pass', description: 'Play a one-two and advance one zone.', totals: [[3,5,8,12],[3,5,8,12],[3,5,8,12]] },
+      dribble: { label: 'Dribble', description: 'Beat your marker and advance up to two zones.', totals: [[4,6,9],[4,6,9],[4,6,9]] },
+      shoot: { label: 'Shoot', description: 'Go for goal. Closer positions give better odds.', totals: [[2],[2,4,10,12],[4,6,7,9]] }
     },
     defense: {
-      press: { label: 'Pressionar', description: 'Reduza o perigo do ataque adversário.', totals: [4,6,8] },
-      tackle: { label: 'Desarmar', description: 'Recupere a bola no meio-campo.', totals: [3,5,7,11] },
-      intercept: { label: 'Interceptar', description: 'Antecipe o passe e volte ao ataque.', totals: [2,6,9,12] }
+      press: { label: 'Press', description: 'Push the opponent back and reduce danger.', totals: [4,6,8] },
+      tackle: { label: 'Tackle', description: 'Win possession back in midfield.', totals: [3,5,7,11] },
+      intercept: { label: 'Intercept', description: 'Read the pass and launch an attack.', totals: [2,6,9,12] }
     }
   };
   const freshMatch = () => ({ home: 0, away: 0, coins: 0, turns: RULES.turns, possession: 'you', zone: 0, threat: 0 });
@@ -188,12 +208,12 @@
     document.getElementById('end-screen').hidden = !ended;
     document.getElementById('reload').hidden = phase !== 'error';
     openChoices.disabled = !choosing && !ended;
-    openChoices.textContent = choosing ? 'Escolher jogada' : ended ? 'Resultado da partida' : phase === 'animation' ? 'Acompanhe a jogada…' : phase === 'error' ? 'Recarregue para tentar de novo' : 'Rolando os dados…';
+    openChoices.textContent = choosing ? 'Choose your move' : ended ? 'Match result' : phase === 'animation' ? 'Watch the play…' : phase === 'error' ? 'Reload to try again' : 'Rolling the dice…';
     if (phase === 'animation') {
       if (screen.open) screen.close();
       return;
     }
-    screenTitle.textContent = choosing ? 'Qual é a sua jogada?' : ended ? 'Fim de jogo' : phase === 'reveal' ? 'Resultado da jogada' : phase === 'error' ? 'Erro ao carregar' : phase === 'loading' ? 'Preparando a partida' : `${moveDefinition(match, committed).label} · valendo!`;
+    screenTitle.textContent = choosing ? 'What is your move?' : ended ? 'Full time' : phase === 'reveal' ? 'The result' : phase === 'error' ? 'Could not load dice' : phase === 'loading' ? 'Preparing the match' : `${moveDefinition(match, committed).label} · here we go!`;
     if (ended) document.getElementById('end-summary').textContent = document.getElementById('situation').textContent;
     if (!screen.open) { screen.showModal(); screenTitle.focus({ preventScroll: true }); }
   }
@@ -217,21 +237,21 @@
     let message;
     let goal = null;
     if (state.possession === 'you') {
-      if (!success) { next.possession = 'opponent'; next.threat = 0; message = move === 'shoot' ? 'O goleiro defendeu! Agora é hora de marcar.' : 'O marcador levou a melhor. Recupere a bola!'; }
-      else if (move === 'shoot') { next.home++; next.coins += RULES.goalCoins; next.possession = 'opponent'; next.threat = 0; goal = 'you'; message = 'GOOOL! +2 moedas. A saída de bola é deles.'; }
-      else { next.zone = Math.min(2, state.zone + (move === 'pass' ? 1 : 2)); message = move === 'pass' ? 'Linda tabela! Seu companheiro devolve a bola na frente.' : 'Passou pelo marcador! Você avança com a bola.'; }
+      if (!success) { next.possession = 'opponent'; next.threat = 0; message = move === 'shoot' ? 'The keeper saves it! Time to defend.' : 'Your marker wins the ball. Win it back!'; }
+      else if (move === 'shoot') { next.home++; next.coins += RULES.goalCoins; next.possession = 'opponent'; next.threat = 0; goal = 'you'; message = 'GOAL! +2 coins. Opponent kickoff.'; }
+      else { next.zone = Math.min(2, state.zone + (move === 'pass' ? 1 : 2)); message = move === 'pass' ? 'A clean one-two! Your teammate returns the pass ahead.' : 'You beat your marker and carry the ball forward.'; }
     } else if (success) {
-      if (move === 'press') { next.threat = Math.max(0, state.threat - 1); message = 'A pressão funcionou! Eles recuam, mas seguem com a bola.'; }
-      else { next.possession = 'you'; next.zone = move === 'intercept' ? 1 : 0; next.threat = 0; message = move === 'intercept' ? 'Você leu o passe! Bola recuperada no campo de ataque.' : 'Desarme limpo! A bola volta para você no meio-campo.'; }
+      if (move === 'press') { next.threat = Math.max(0, state.threat - 1); message = 'Your pressure forces them back, but they keep possession.'; }
+      else { next.possession = 'you'; next.zone = move === 'intercept' ? 1 : 0; next.threat = 0; message = move === 'intercept' ? 'Pass intercepted! Attack from the attacking third.' : 'Clean tackle! You win the ball in midfield.'; }
     } else {
       next.threat++;
-      message = 'Eles passaram! Mais uma falha e será gol.';
-      if (next.threat >= 2) { next.away++; next.possession = 'you'; next.zone = 0; next.threat = 0; goal = 'opponent'; message = 'Gol do adversário. Recomece pelo meio-campo.'; }
+      message = 'They get past you! One more defensive failure will concede.';
+      if (next.threat >= 2) { next.away++; next.possession = 'you'; next.zone = 0; next.threat = 0; goal = 'opponent'; message = 'Opponent goal. Your kickoff in midfield.'; }
     }
     return { state: next, success, message, goal };
   }
-  function updateScore() {
-    for (const [id, value] of Object.entries({ 'home-score': match.home, 'away-score': match.away, coins: match.coins, turns: match.turns })) document.getElementById(id).textContent = value;
+  function updateScore(state = match) {
+    for (const [id, value] of Object.entries({ 'home-score': state.home, 'away-score': state.away, coins: state.coins, turns: state.turns })) document.getElementById(id).textContent = value;
   }
   function renderChoices() {
     const moves = document.getElementById('moves');
@@ -246,8 +266,8 @@
       const title = document.createElement('strong'); title.textContent = definition.label;
       const numbers = document.createElement('span'); numbers.className = 'targets';
       totals.forEach(value => { const badge = document.createElement('span'); badge.className = 'die-target'; badge.textContent = value; numbers.appendChild(badge); });
-      const odds = document.createElement('span'); odds.className = 'odds'; odds.textContent = `${chance(totals)}% de chance`; numbers.appendChild(odds);
-      move.setAttribute('aria-label', `${definition.label}. ${definition.description} Sucesso com ${totals.join(', ')}. ${chance(totals)}% de chance.`);
+      const odds = document.createElement('span'); odds.className = 'odds'; odds.textContent = `${chance(totals)}% chance`; numbers.appendChild(odds);
+      move.setAttribute('aria-label', `${definition.label}. ${definition.description} Success on ${totals.join(', ')}. ${chance(totals)}% chance.`);
       const detail = document.createElement('span'); detail.className = 'description'; detail.textContent = definition.description;
       move.append(title, numbers, detail);
       move.addEventListener('click', () => {
@@ -266,7 +286,7 @@
     button.disabled = phase !== 'choose' || !selected;
     button.textContent = phase === 'loading' ? 'Loading dice…' : phase === 'rolling' ? 'Rolling…' : phase === 'end' ? 'Full time' : 'Roll both dice';
     restart.disabled = ['rolling', 'reveal', 'animation'].includes(phase);
-    document.getElementById('phase').textContent = ({ loading: 'Carregando', choose: 'Sua decisão', rolling: 'A sorte está lançada', reveal: 'Dados na mesa', animation: 'Bola em jogo', end: 'Fim de jogo', error: 'Indisponível' })[phase];
+    document.getElementById('phase').textContent = ({ loading: 'Loading', choose: 'Your decision', rolling: 'The dice are rolling', reveal: 'The dice have settled', animation: 'Ball in play', end: 'Full time', error: 'Unavailable' })[phase];
     document.querySelectorAll('.move').forEach(b => { b.disabled = phase !== 'choose'; });
     showScreen();
   }
@@ -290,19 +310,72 @@
   }
   function describeSituation() {
     const attack = match.possession === 'you';
-    document.getElementById('possession').textContent = attack ? 'Sua posse' : 'Posse adversária';
-    document.getElementById('zone').textContent = attack ? RULES.zones[match.zone] : 'Defendendo';
-    document.getElementById('threat').textContent = attack ? 'Ataque ↑' : `Perigo: ${match.threat} / 2`;
-    document.getElementById('situation').textContent = attack ? `Você recebe no ${RULES.zones[match.zone].toLowerCase()}. O marcador se aproxima. Decida!` : `A bola é deles. ${match.threat ? 'Mais uma falha na defesa e será gol.' : 'Feche os espaços e recupere a bola.'}`;
+    document.getElementById('possession').textContent = attack ? 'Your possession' : 'Opponent possession';
+    document.getElementById('zone').textContent = attack ? RULES.zones[match.zone] : 'Defending';
+    document.getElementById('threat').textContent = attack ? 'Attack ↑' : `Threat: ${match.threat} / 2`;
+    document.getElementById('situation').textContent = attack ? `You receive the ball in ${RULES.zones[match.zone].toLowerCase()}. Your marker closes in. Decide!` : `They have the ball. ${match.threat ? 'One more defensive failure means a goal.' : 'Close the space and win possession back.'}`;
   }
   const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+  function clearGoalMoment() {
+    document.getElementById('goal-banner').hidden = true;
+    document.getElementById('confetti').replaceChildren();
+    document.querySelectorAll('.celebrating,.net-ripple,.score-flash,.goal-shot').forEach(el => el.classList.remove('celebrating','net-ripple','score-flash','goal-shot'));
+    document.getElementById('keeper').style.rotate = '';
+    document.querySelectorAll('[data-resting-arms]').forEach(arms => {
+      arms.setAttribute('d', arms.dataset.restingArms); delete arms.dataset.restingArms;
+    });
+  }
+  async function animateGoal(before, outcome) {
+    const ownGoal = outcome.goal === 'you';
+    const scorer = document.getElementById(ownGoal ? 'player' : 'marker');
+    const ball = document.getElementById('ball');
+    fieldFeedback.textContent = ownGoal ? 'You strike it…' : 'The opponent shoots…';
+    // Allow the field camera to finish opening before the shot.
+    await wait(reducedMotion.matches ? 0 : 350);
+    scorer.classList.add('celebrating');
+    put(ownGoal ? 'player' : 'marker', ownGoal ? Math.min(90, fieldX(before) + 4) : 13, 50);
+    await wait(reducedMotion.matches ? 0 : 200);
+    scorer.classList.remove('celebrating');
+    ball.classList.add('goal-shot');
+    put('ball', ownGoal ? 98 : -8, ownGoal ? 54 : 50);
+    if (ownGoal) {
+      put('keeper', 94, 40);
+      document.getElementById('keeper').style.rotate = '-65deg';
+    }
+    await wait(reducedMotion.matches ? 0 : 750);
+    document.getElementById(ownGoal ? 'away-net' : 'home-net').classList.add('net-ripple');
+    updateScore(outcome.state);
+    document.getElementById(ownGoal ? 'home-score' : 'away-score').classList.add('score-flash');
+    const banner = document.getElementById('goal-banner');
+    banner.dataset.team = outcome.goal;
+    document.getElementById('goal-title').textContent = ownGoal ? 'GOAL!' : 'OPPONENT GOAL';
+    document.getElementById('goal-detail').textContent = `${outcome.state.home} – ${outcome.state.away} · ${ownGoal ? '+2 MATCH COINS' : 'YOUR KICKOFF'}`;
+    fieldFeedback.textContent = outcome.message;
+    banner.hidden = false;
+    const arms = scorer.querySelector('path[stroke="#d49a73"][stroke-linecap="round"]');
+    if (arms) { arms.dataset.restingArms = arms.getAttribute('d'); arms.setAttribute('d','M8 18L2 6M24 18L30 6'); }
+    scorer.classList.add('celebrating');
+    if (ownGoal) {
+      document.getElementById('mate').classList.add('celebrating');
+      if (!reducedMotion.matches) for (let i=0; i<24; i++) {
+        const piece = document.createElement('i'); piece.style.left = `${i * 4.2}%`;
+        piece.style.background = ['#ffcc54','#60b8ff','#fff'][i % 3];
+        piece.style.animationDelay = `${(i % 6) * .07}s`;
+        document.getElementById('confetti').appendChild(piece);
+      }
+    }
+    await wait(reducedMotion.matches ? 1600 : 2300);
+    clearGoalMoment();
+    paintField(outcome.state);
+    await wait(reducedMotion.matches ? 0 : 650);
+  }
   async function animatePlay(before, outcome, move) {
     const delay = reducedMotion.matches ? 0 : 650;
     const from = fieldX(before);
     const to = fieldX(outcome.state);
     if (outcome.goal) {
-      put('ball', outcome.goal === 'you' ? 98 : 2, 50);
-      put(outcome.goal === 'you' ? 'player' : 'marker', outcome.goal === 'you' ? Math.min(90, from + 5) : 12, 48);
+      await animateGoal(before, outcome);
+      return;
     }
     else if (before.possession === 'you' && outcome.success && move === 'pass') {
       put('ball', Math.min(88, from + 12), 27); await wait(delay);
@@ -321,8 +394,8 @@
   function beginDiceRoll() {
     if (phase !== 'choose' || !selected) return false;
     committed = selected; phase = 'rolling'; total.textContent = '—';
-    document.getElementById('chosen-move').textContent = `${moveDefinition(match, committed).label} · Sucesso com ${allowedTotals(match, committed).join(', ')}`;
-    result.dataset.outcome = ''; result.textContent = 'Sua jogada está definida. Vamos aos dados!';
+    document.getElementById('chosen-move').textContent = `${moveDefinition(match, committed).label} · Success on ${allowedTotals(match, committed).join(', ')}`;
+    result.dataset.outcome = ''; result.textContent = 'Your decision is locked. Let the dice decide!';
     updateControls(); return true;
   }
   async function resolveDice(values) {
@@ -336,7 +409,7 @@
     total.textContent = sum;
     container.setAttribute('aria-label', `Dice show ${values[0]} and ${values[1]}, total ${sum}.`);
     result.dataset.outcome = outcome.success ? 'success' : 'fail';
-    const explanation = `${outcome.success ? 'SUCESSO!' : 'NÃO FOI DESSA VEZ'} · ${values[0]} + ${values[1]} = ${sum}. Alvos: ${allowedTotals(before, move).join(', ')}.`;
+    const explanation = `${outcome.success ? 'SUCCESS!' : 'UNSUCCESSFUL'} · ${values[0]} + ${values[1]} = ${sum}. Targets: ${allowedTotals(before, move).join(', ')}.`;
     result.textContent = explanation;
     await wait(reducedMotion.matches ? 700 : 1500);
     if (run !== generation) return;
@@ -356,21 +429,21 @@
     if (run !== generation) return;
     phase = match.turns === 0 ? 'end' : 'choose';
     if (phase === 'end') {
-      const verdict = match.home > match.away ? 'Você venceu!' : match.home < match.away ? 'O adversário venceu.' : 'Empate!';
-      document.getElementById('situation').textContent = `${verdict} ${match.home}–${match.away}. Você ganhou ${match.coins} moedas nesta partida.`;
-      result.textContent += ` Fim de jogo. ${verdict}`;
+      const verdict = match.home > match.away ? 'You win!' : match.home < match.away ? 'The opponent wins.' : 'A draw!';
+      document.getElementById('situation').textContent = `${verdict} ${match.home}–${match.away}. You earned ${match.coins} coins this match.`;
+      result.textContent += ` Full time. ${verdict}`;
       fieldFeedback.textContent = document.getElementById('situation').textContent;
     }
     renderChoices(); updateControls();
   }
   restart.addEventListener('click', () => {
     if (restart.disabled) return;
-    generation++; resetDice(); match = freshMatch(); selected = null; committed = null;
+    generation++; clearGoalMoment(); resetDice(); match = freshMatch(); selected = null; committed = null;
     if (!['loading', 'error'].includes(phase)) phase = 'choose';
     total.textContent = '—'; result.dataset.outcome = '';
-    result.textContent = phase === 'choose' ? 'Nova partida. Escolha sua primeira jogada.' : 'Reload the page if the dice could not load.';
-    fieldFeedback.textContent = 'Nova partida. Você recebe a bola no meio-campo.';
-    document.getElementById('history').innerHTML = '<li>A bola vem para você. Faça a diferença.</li>';
+    result.textContent = phase === 'choose' ? 'New match. Choose your first move.' : 'Reload the page if the dice could not load.';
+    fieldFeedback.textContent = 'New match. You receive the ball in midfield.';
+    document.getElementById('history').innerHTML = '<li>The pass is coming to you. Make it count.</li>';
     updateScore(); paintField(match); describeSituation(); renderChoices(); updateControls();
   });
   updateScore(); paintField(match); describeSituation(); renderChoices(); updateControls();
@@ -644,14 +717,14 @@
           if (rollTime > .8 && dice.every(({ body }) => body.sleepState === CANNON.Body.SLEEPING)) {
             // Re-toss cocked or stacked dice instead of reporting an ambiguous face.
             if (dice.some(die => topFace(die).alignment < .98 || die.body.position.y > .65)) {
-              result.textContent = 'Dados inclinados. Rolando novamente…';
+              result.textContent = 'Cocked dice. Rolling again…';
               launch();
             } else {
               rolling = false;
               showResult();
             }
           } else if (rollTime > 12) {
-            result.textContent = 'Mais um lançamento para os dados assentarem…';
+            result.textContent = 'Giving the dice another toss to settle…';
             launch();
           }
         }
@@ -676,23 +749,19 @@
       rollAutomatically = () => button.click();
       phase = 'choose';
       renderChoices(); updateControls();
-      result.textContent = 'Tudo pronto. Escolha sua jogada para atacar.';
+      result.textContent = 'Ready. Choose a move to start your attack.';
       renderer.domElement.addEventListener('webglcontextlost', event => {
         event.preventDefault();
         phase = 'error'; updateControls();
-        result.textContent = 'A renderização foi interrompida. Recarregue para continuar.';
+        result.textContent = 'Graphics interrupted. Reload the page to continue.';
       });
     } catch (error) {
       console.error(error);
       phase = 'error'; updateControls();
       button.textContent = 'Unavailable';
-      result.textContent = 'Não foi possível carregar os dados 3D. Confira a conexão e recarregue a página.';
+      result.textContent = 'Could not load the 3D dice. Check your connection and reload.';
     }
 
 </script>
 </body>
 </html>
-
-
-
-

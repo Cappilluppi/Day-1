@@ -95,6 +95,9 @@
     .net-ripple { animation: ripple .6s ease-out; transform-box: fill-box; transform-origin: center; }
     @keyframes ripple { 30% { transform: scale(1.08,1.3); } 65% { transform: scale(.98,.9); } }
     #ball.goal-shot { transition-duration: .7s; transition-timing-function: cubic-bezier(.15,.5,.35,1); }
+    #ball.keeper-clearance { animation: clearance-arc .9s ease-in-out; transition-duration: .9s; }
+    @keyframes clearance-arc { 50% { translate: 0 -40px; scale: 1.6; } }
+    @media (prefers-reduced-motion: reduce) { #ball.keeper-clearance { animation: none; transition: none; } }
     .celebrating { animation: celebrate .45s ease-in-out 3; }
     @keyframes celebrate { 50% { translate: 0 -12px; rotate: -5deg; } }
     .score-flash { animation: score-flash .65s ease-out; }
@@ -133,7 +136,7 @@
       <div class="field-caption muted"><span id="zone">Midfield</span><span id="threat">Attack ↑</span></div>
       <p id="field-feedback" role="status" aria-live="polite">The ball is coming. This is your moment.</p>
       <button type="button" id="choose-open" disabled>Loading match…</button>
-      <details><summary>Commentary &amp; rules</summary><ol id="history"><li>The pass is coming to you. Make it count.</li></ol><p>Tap a move to roll both dice automatically. Only the listed totals succeed. Watch the result, then the play on the field. You have 20 decisions; two defensive failures concede a goal.</p><p>Each of your goals earns 2 match coins. Coins reset each match and count as a secondary score.</p></details>
+      <details><summary>Commentary &amp; rules</summary><ol id="history"><li>The pass is coming to you. Make it count.</li></ol><p>Tap a move to roll both dice automatically. Only the listed totals succeed. Watch the result, then the play on the field. You have 20 decisions; two defensive failures concede a goal.</p><p>After a saved shot, the goalkeeper clears the ball. You have a 30% chance of winning it back in midfield; otherwise the opponent takes possession. This happens within the same turn.</p><p>Each of your goals earns 2 match coins. Coins reset each match and count as a secondary score.</p></details>
     </section>
   </div>
   <div id="confetti" aria-hidden="true"></div>
@@ -178,7 +181,7 @@
   });
   // Balance lives here: totals are exact successful sums, not minimum thresholds.
   const RULES = {
-    turns: 20, goalCoins: 2,
+    turns: 20, goalCoins: 2, keeperRecoveryChance: .30,
     zones: ['Midfield', 'Attacking third', 'Penalty area'],
     attack: {
       pass: { label: 'Pass', description: 'Play a one-two and advance one zone.', totals: [[3,5,8,12],[3,5,8,12],[3,5,8,12]] },
@@ -231,13 +234,21 @@
   }
   function chance(totals) { return Math.round(totals.reduce((sum, value) => sum + 6 - Math.abs(7 - value), 0) / 36 * 100); }
   // Pure match transition: one resolved roll consumes exactly one decision.
-  function applyMove(state, move, sum) {
+  function applyMove(state, move, sum, clearanceRoll = 1) {
     const next = { ...state, turns: state.turns - 1 };
     const success = allowedTotals(state, move).includes(sum);
     let message;
     let goal = null;
+    const keeperClearance = state.possession === 'you' && move === 'shoot' && !success;
+    const recoveredClearance = keeperClearance && clearanceRoll < RULES.keeperRecoveryChance;
     if (state.possession === 'you') {
-      if (!success) { next.possession = 'opponent'; next.threat = 0; message = move === 'shoot' ? 'The keeper saves it! Time to defend.' : 'Your marker wins the ball. Win it back!'; }
+      if (!success) {
+        next.possession = recoveredClearance ? 'you' : 'opponent'; next.threat = 0;
+        if (keeperClearance) {
+          next.zone = 0;
+          message = recoveredClearance ? 'You win the goalkeeper’s clearance! Your ball in midfield (30% recovery chance).' : 'The opponent wins the goalkeeper’s clearance. Time to defend!';
+        } else { message = 'Your marker wins the ball. Win it back!'; }
+      }
       else if (move === 'shoot') { next.home++; next.coins += RULES.goalCoins; next.possession = 'opponent'; next.threat = 0; goal = 'you'; message = 'GOAL! +2 coins. Opponent kickoff.'; }
       else { next.zone = Math.min(2, state.zone + (move === 'pass' ? 1 : 2)); message = move === 'pass' ? 'A clean one-two! Your teammate returns the pass ahead.' : 'You beat your marker and carry the ball forward.'; }
     } else if (success) {
@@ -248,7 +259,7 @@
       message = 'They get past you! One more defensive failure will concede.';
       if (next.threat >= 2) { next.away++; next.possession = 'you'; next.zone = 0; next.threat = 0; goal = 'opponent'; message = 'Opponent goal. Your kickoff in midfield.'; }
     }
-    return { state: next, success, message, goal };
+    return { state: next, success, message, goal, keeperClearance, recoveredClearance };
   }
   function updateScore(state = match) {
     for (const [id, value] of Object.entries({ 'home-score': state.home, 'away-score': state.away, coins: state.coins, turns: state.turns })) document.getElementById(id).textContent = value;
@@ -384,8 +395,18 @@
     } else if (before.possession === 'you' && outcome.success) {
       put('player', to, 52); put('ball', to + 2, 56); put('marker', from, 72);
     } else if (before.possession === 'you' && move === 'shoot') {
+      fieldFeedback.textContent = 'Saved! The goalkeeper gathers the ball…';
       put('ball', 92, 50); put('keeper', 92, 50); await wait(delay);
+      fieldFeedback.textContent = 'The goalkeeper launches it. Can you win it back? 30% chance.';
+      await wait(reducedMotion.matches ? 300 : 450);
+      const ball = document.getElementById('ball');
+      ball.classList.add('keeper-clearance');
+      put('player', outcome.recoveredClearance ? to : to + 10, 52);
+      put('marker', outcome.recoveredClearance ? to + 10 : to, 52);
       put('ball', to + 2, 56);
+      await wait(reducedMotion.matches ? 300 : 950);
+      ball.classList.remove('keeper-clearance');
+      fieldFeedback.textContent = outcome.message;
     } else { put('ball', to + 2, 56); put(outcome.state.possession === 'you' ? 'player' : 'marker', to, 52); }
     await wait(delay);
     paintField(outcome.state);
@@ -405,7 +426,9 @@
     const before = { ...match };
     const move = committed;
     const sum = values[0] + values[1];
-    const outcome = applyMove(before, move, sum);
+    // Sample once per saved shot. Physics rerolls never trigger extra recovery attempts.
+    const savedShot = before.possession === 'you' && move === 'shoot' && !allowedTotals(before, move).includes(sum);
+    const outcome = applyMove(before, move, sum, savedShot ? Math.random() : 1);
     total.textContent = sum;
     container.setAttribute('aria-label', `Dice show ${values[0]} and ${values[1]}, total ${sum}.`);
     result.dataset.outcome = outcome.success ? 'success' : 'fail';
